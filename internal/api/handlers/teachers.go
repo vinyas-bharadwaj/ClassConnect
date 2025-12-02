@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"ClassConnect/internal/models"
-	"ClassConnect/internal/repository/sqlconnect"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -11,8 +10,16 @@ import (
 	"strings"
 )
 
-func getTeachersHandler(db *sql.DB, w http.ResponseWriter, _ *http.Request) {
-	rows, err := db.Query("SELECT * FROM teachers;")
+type TeachersHandler struct {
+	db *sql.DB
+}
+
+func NewTeacherHandler(db *sql.DB) *TeachersHandler {
+	return &TeachersHandler{db: db}
+}
+
+func (h *TeachersHandler) GetTeachersHandler(w http.ResponseWriter, _ *http.Request) {
+	rows, err := h.db.Query("SELECT * FROM teachers;")
 	if err != nil {
 		http.Error(w, "Error retrieving all the teachers", http.StatusInternalServerError)
 		return
@@ -41,7 +48,7 @@ func getTeachersHandler(db *sql.DB, w http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func createTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+func (h *TeachersHandler) CreateTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	var newTeachers []models.Teacher
 	err := json.NewDecoder(r.Body).Decode(&newTeachers)
 	if err != nil {
@@ -49,7 +56,7 @@ func createTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stmt, err := db.Prepare("INSERT INTO teachers(first_name, last_name, email, class, subject) VALUES(?,?,?,?,?)")
+	stmt, err := h.db.Prepare("INSERT INTO teachers(first_name, last_name, email, class, subject) VALUES(?,?,?,?,?)")
 	if err != nil {
 		http.Error(w, "Error in preparing SQL query", http.StatusInternalServerError)
 		return
@@ -88,7 +95,7 @@ func createTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func deleteTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+func (h *TeachersHandler) DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -97,7 +104,7 @@ func deleteTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := db.Exec("DELETE FROM teachers WHERE id = ?", id)
+	res, err := h.db.Exec("DELETE FROM teachers WHERE id = ?", id)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Error deleting the teacher", http.StatusInternalServerError)
@@ -128,7 +135,7 @@ func deleteTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func updateTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
+func (h *TeachersHandler) UpdateTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -146,7 +153,7 @@ func updateTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	var existingTeacher models.Teacher
-	err = db.QueryRow("SELECT * FROM teachers WHERE id = ?", id).Scan(
+	err = h.db.QueryRow("SELECT * FROM teachers WHERE id = ?", id).Scan(
 		&existingTeacher.Id,
 		&existingTeacher.FirstName,
 		&existingTeacher.LastName,
@@ -164,7 +171,7 @@ func updateTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	updatedTeacher.Id = existingTeacher.Id
-	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
+	_, err = h.db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
 		updatedTeacher.FirstName,
 		updatedTeacher.LastName,
 		updatedTeacher.Email,
@@ -180,24 +187,4 @@ func updateTeachersHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedTeacher)
-}
-
-func TeachersHandler(w http.ResponseWriter, r *http.Request) {
-	db, err := sqlconnect.ConnectDB()
-	if err != nil {
-		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	switch r.Method {
-	case http.MethodGet:
-		getTeachersHandler(db, w, r)
-	case http.MethodPost:
-		createTeachersHandler(db, w, r)
-	case http.MethodDelete:
-		deleteTeachersHandler(db, w, r)
-	case http.MethodPut:
-		updateTeachersHandler(db, w, r)
-	}
 }
