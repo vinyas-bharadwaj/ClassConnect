@@ -4,10 +4,10 @@ import (
 	"ClassConnect/internal/models"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type TeachersHandler struct {
@@ -46,6 +46,32 @@ func (h *TeachersHandler) GetTeachersHandler(w http.ResponseWriter, _ *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *TeachersHandler) GetTeacherByIdhandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var teacher models.Teacher
+	err = h.db.QueryRow("SELECT * FROM teachers WHERE id = ?", id).Scan(
+		&teacher.Id,
+		&teacher.FirstName,
+		&teacher.LastName,
+		&teacher.Email,
+		&teacher.Class,
+		&teacher.Subject,
+	)
+	if err != nil {
+		http.Error(w, "Teacher with that ID does not exist in the database!", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(teacher)
 }
 
 func (h *TeachersHandler) CreateTeachersHandler(w http.ResponseWriter, r *http.Request) {
@@ -96,11 +122,10 @@ func (h *TeachersHandler) CreateTeachersHandler(w http.ResponseWriter, r *http.R
 }
 
 func (h *TeachersHandler) DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "Invalid Teacher ID", http.StatusBadGateway)
+		fmt.Println(err)
 		return
 	}
 
@@ -136,7 +161,7 @@ func (h *TeachersHandler) DeleteTeachersHandler(w http.ResponseWriter, r *http.R
 }
 
 func (h *TeachersHandler) UpdateTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println(err)
@@ -187,4 +212,44 @@ func (h *TeachersHandler) UpdateTeachersHandler(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedTeacher)
+}
+
+func (h *TeachersHandler) GetStudentsByTeacherId(w http.ResponseWriter, r *http.Request) {
+	teacherId := r.PathValue("id")
+	var students []models.Student
+
+	rows, err := h.db.Query("SELECT * FROM students WHERE class = (SELECT class FROM teachers WHERE id = ?)", teacherId)
+	if err != nil {
+		http.Error(w, "Error getting students under the given teacher", http.StatusNotFound)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var student models.Student
+		err = rows.Scan(&student.Id, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			http.Error(w, "Error querying the database", http.StatusInternalServerError)
+			return
+		}
+		students = append(students, student)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		http.Error(w, "Error querying the database", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Data   []models.Student `json:"data"`
+	}{
+		Status: "Success",
+		Count:  len(students),
+		Data:   students,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

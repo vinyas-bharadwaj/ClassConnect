@@ -5,5 +5,5 @@ type Student struct {
 	FirstName string `json:"first_name,omitempty"`
 	LastName  string `json:"last_name,omitempty"`
 	Email     string `json:"email,omitempty"`
-	Calass    int    `class:"id,omitempty"`
+	Class     string `json:"class,omitempty"`
 }
