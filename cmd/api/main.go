@@ -45,7 +45,8 @@ func main() {
 
 	// Chaining all of our middlewares
 	// Note that the first argument will be the innermost middleware and the last will be the outermost
-	secureMux := utils.ApplyMiddlewares(router, mw.Compress, mw.SecurityHeaders, mw.ResponseTime, rl.Middleware, mw.Cors)
+	jwtMiddleware := mw.MiddlewareExcludePaths(mw.JWTMiddleware, "/execs/login/", "/execs/forgotPassword/")
+	secureMux := utils.ApplyMiddlewares(router, mw.Compress, mw.SecurityHeaders, mw.ResponseTime, rl.Middleware, mw.Cors, jwtMiddleware)
 
 	// Create custom server
 	server := &http.Server{
