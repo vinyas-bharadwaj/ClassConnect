@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ClassConnect/internal/models"
+	"ClassConnect/pkg/utils"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -215,6 +216,13 @@ func (h *TeachersHandler) UpdateTeachersHandler(w http.ResponseWriter, r *http.R
 }
 
 func (h *TeachersHandler) GetStudentsByTeacherId(w http.ResponseWriter, r *http.Request) {
+	// Allowed Roles: admin, manager, exec
+	_, err := utils.AuthorizeUser(r.Context().Value(utils.ContextKey("role")).(string), "admin", "manager", "exec")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	teacherId := r.PathValue("id")
 	var students []models.Student
 

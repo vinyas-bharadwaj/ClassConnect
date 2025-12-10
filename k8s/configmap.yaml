@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: classconnect-config
+data:
+  API_PORT: "3000"
+  JWT_EXPIRES_IN: "24h"
+  RESET_TOKEN_EXP_DURATION: "1h"
+  DB_NAME: "classconnect"
+  DB_HOST: "mariadb-service"
+  DB_PORT: "3306"

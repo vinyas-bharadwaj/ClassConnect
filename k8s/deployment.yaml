@@ -1,0 +1,46 @@
+# Deployment: Manages a set of identical pods (replicas)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: classconnect-api
+spec:
+  # Number of pod replicas to run
+  replicas: 3
+  
+  # Selector tells Deployment which pods it manages
+  selector:
+    matchLabels:
+      app: classconnect-api
+  
+  # Template defines what each pod looks like
+  template:
+    metadata:
+      labels:
+        app: classconnect-api
+    spec:
+      containers:
+      - name: api
+        image: classconnect-api:latest
+        # Ensures that kubernetes does not try to pull the image from the internet
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3000
+        env:
+        - name: API_PORT
+          value: "3000"
+        - name: JWT_SECRET
+          value: "my-secret-key"
+        - name: JWT_EXPIRES_IN
+          value: "24h"
+        - name: RESET_TOKEN_EXP_DURATION
+          value: "1h"
+        - name: DB_USER
+          value: "classconnect"
+        - name: DB_PASSWORD
+          value: "password"
+        - name: DB_NAME
+          value: "classconnect"
+        - name: DB_HOST
+          value: "mariadb-service"
+        - name: DB_PORT
+          value: "3306"

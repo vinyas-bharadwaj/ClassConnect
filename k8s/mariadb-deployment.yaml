@@ -1,0 +1,43 @@
+# Database Deployment: Single MariaDB instance
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:11
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MARIADB_ROOT_PASSWORD
+          value: "password"
+        - name: MARIADB_DATABASE
+          value: "classconnect"
+        - name: MARIADB_USER
+          value: "classconnect"
+        - name: MARIADB_PASSWORD
+          value: "password"
+---
+# Service: Exposes database within cluster only
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+spec:
+  # ClusterIP = internal only, no external access
+  type: ClusterIP
+  selector:
+    app: mariadb
+  ports:
+  - port: 3306
+    targetPort: 3306

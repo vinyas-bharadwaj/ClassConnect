@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -41,12 +40,12 @@ func main() {
 	router := routers.Router()
 
 	// Set a rate limiter of 5 requests per minute
-	rl := mw.NewRateLimiter(50, time.Minute)
+	// rl := mw.NewRateLimiter(50, time.Minute)
 
 	// Chaining all of our middlewares
 	// Note that the first argument will be the innermost middleware and the last will be the outermost
-	jwtMiddleware := mw.MiddlewareExcludePaths(mw.JWTMiddleware, "/execs/login/", "/execs/forgotPassword/")
-	secureMux := utils.ApplyMiddlewares(router, mw.Compress, mw.SecurityHeaders, mw.ResponseTime, rl.Middleware, mw.Cors, jwtMiddleware)
+	jwtMiddleware := mw.MiddlewareExcludePaths(mw.JWTMiddleware, "/execs/login/", "/execs/forgotPassword/", "/execs/resetPassword/", "/execs/")
+	secureMux := utils.ApplyMiddlewares(router, mw.SecurityHeaders, mw.Compress, jwtMiddleware, mw.ResponseTime, mw.Cors)
 
 	// Create custom server
 	server := &http.Server{

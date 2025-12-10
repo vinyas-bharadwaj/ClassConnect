@@ -1,0 +1,17 @@
+# Service: Exposes pods to network traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: classconnect-api-lb
+spec:
+  # LoadBalancer creates external IP for outside access
+  type: LoadBalancer
+  
+  # Selector matches pods with this label
+  selector:
+    app: classconnect-api
+  
+  # Port mapping: external:80 -> pod:3000
+  ports:
+  - port: 80
+    targetPort: 3000

@@ -18,8 +18,11 @@ func NewStudentHandler(db *sql.DB) *StudentHandler {
 	return &StudentHandler{db: db}
 }
 
-func (h *StudentHandler) GetStudentsHandler(w http.ResponseWriter, _ *http.Request) {
-	rows, err := h.db.Query("SELECT * FROM students;")
+func (h *StudentHandler) GetStudentsHandler(w http.ResponseWriter, r *http.Request) {
+	page, limit := getPaginationParams(r)
+	offset := (page - 1) * limit
+
+	rows, err := h.db.Query("SELECT * FROM students LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		http.Error(w, "Error retrieving all the students", http.StatusInternalServerError)
 		return
@@ -35,17 +38,46 @@ func (h *StudentHandler) GetStudentsHandler(w http.ResponseWriter, _ *http.Reque
 		}
 		studentList = append(studentList, student)
 	}
+
+	var studentCount int
+	err = h.db.QueryRow("SELECT COUNT(*) FROM students").Scan(&studentCount)
+	if err != nil {
+		http.Error(w, "Error finding student count", http.StatusInternalServerError)
+		return
+	}
+
 	response := struct {
-		Status string           `json:"status"`
-		Count  int              `json:"count"`
-		Data   []models.Student `json:"data"`
+		Status   string           `json:"status"`
+		Count    int              `json:"count"`
+		Page     int              `json:"page"`
+		PageSize int              `json:"page_size"`
+		Data     []models.Student `json:"data"`
 	}{
-		Status: "success",
-		Count:  len(studentList),
-		Data:   studentList,
+		Status:   "success",
+		Count:    studentCount,
+		Page:     page,
+		PageSize: limit,
+		Data:     studentList,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func getPaginationParams(r *http.Request) (int, int) {
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+
+	return page, limit
 }
 
 func (h *StudentHandler) GetStudentByIdHandler(w http.ResponseWriter, r *http.Request) {

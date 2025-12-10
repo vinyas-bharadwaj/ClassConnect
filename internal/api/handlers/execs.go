@@ -550,3 +550,94 @@ func (h *ExecsHandler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *ExecsHandler) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("ResetPasswordHandler called")
+
+	token := r.PathValue("resetCode")
+	log.Printf("Received reset token: %s\n", token)
+
+	type request struct {
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+
+	var req request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Println("Decode error:", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	r.Body.Close()
+
+	if req.NewPassword == "" || req.ConfirmPassword == "" {
+		log.Println("Password fields are empty")
+		http.Error(w, "Password fields cannot be blank", http.StatusBadRequest)
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		log.Println("Passwords do not match")
+		http.Error(w, "Passwords should match", http.StatusBadRequest)
+		return
+	}
+
+	log.Println("Decoding token...")
+	var user models.Exec
+	bytes, err := hex.DecodeString(token)
+	if err != nil {
+		log.Println("Token decode error:", err)
+		http.Error(w, "Invalid reset token format", http.StatusBadRequest)
+		return
+	}
+
+	hashedToken := sha256.Sum256(bytes)
+	hashedTokenString := hex.EncodeToString(hashedToken[:])
+	log.Printf("Looking up hashed token in database...\n")
+
+	// Query without expiry check since schema doesn't have password_token_expires
+	query := "SELECT id, email FROM execs WHERE password_reset_token = ?"
+	err = h.db.QueryRow(query, hashedTokenString).Scan(&user.Id, &user.Email)
+	if err != nil {
+		log.Println("Database query error:", err)
+		if err == sql.ErrNoRows {
+			http.Error(w, "Invalid or expired reset token", http.StatusBadRequest)
+		} else {
+			http.Error(w, "Error validating reset token", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	log.Printf("User found: ID=%d, Email=%s\n", user.Id, user.Email)
+
+	// Hash the new password
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		log.Println("Password hash error:", err)
+		http.Error(w, "Error hashing the new password", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Updating password in database...")
+	updateQuery := "UPDATE execs SET password = ?, password_reset_token = NULL, password_changed_at = CURRENT_TIMESTAMP WHERE id = ?"
+	_, err = h.db.Exec(updateQuery, hashedPassword, user.Id)
+	if err != nil {
+		log.Println("Database update error:", err)
+		http.Error(w, "Error updating password", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Password reset successful")
+
+	response := struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}{
+		Status:  "success",
+		Message: "Password reset successfully!",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

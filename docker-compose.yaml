@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rest_api
+    env_file:
+      - .env                  
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - app-network
+    environment:
+      API_PORT: ${API_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      RESET_TOKEN_EXP_DURATION: ${RESET_TOKEN_EXP_DURATION}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+
+  mariadb:
+    image: mariadb:11
+    container_name: rest_mariadb
+    restart: unless-stopped
+    env_file:
+      - .env                    
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3307"
+    networks:
+      - app-network
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    command: --port=3307
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mariadb_data:
+
+networks:
+  app-network:
+    driver: bridge
