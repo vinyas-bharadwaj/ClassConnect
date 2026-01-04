@@ -15,13 +15,10 @@ import (
 )
 
 func init() {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
+	// Load .env file if it exists (for local development)
+	_ = godotenv.Load()
 
-	err = sqlconnect.InitDB()
+	err := sqlconnect.InitDB()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -53,8 +50,8 @@ func main() {
 		Handler: secureMux,
 	}
 
-	fmt.Println("Server running on port:", port)
-	err := server.ListenAndServe()
+	fmt.Println("Server running on port:", port, "(HTTPS)")
+	err := server.ListenAndServeTLS("/app/server.crt", "/app/server.key")
 	if err != nil {
 		log.Fatalln("Error starting new server: ", err)
 	}

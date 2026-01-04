@@ -27,6 +27,13 @@ go.work.sum
 # env file
 .env
 
+# TLS/SSL certificates and keys
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
 # Editor/IDE
 # .idea/
 # .vscode/

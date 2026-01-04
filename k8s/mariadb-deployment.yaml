@@ -1,3 +1,15 @@
+# PersistentVolumeClaim: Requests storage space
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce  # Only one pod can mount this
+  resources:
+    requests:
+      storage: 1Gi  # Request 1GB of storage
+---
 # Database Deployment: Single MariaDB instance
 apiVersion: apps/v1
 kind: Deployment
@@ -27,6 +39,13 @@ spec:
           value: "classconnect"
         - name: MARIADB_PASSWORD
           value: "password"
+        volumeMounts:
+        - name: mariadb-storage
+          mountPath: /var/lib/mysql  # Where MariaDB stores data
+      volumes:
+      - name: mariadb-storage
+        persistentVolumeClaim:
+          claimName: mariadb-pvc  # Use the PVC created above
 ---
 # Service: Exposes database within cluster only
 apiVersion: v1
